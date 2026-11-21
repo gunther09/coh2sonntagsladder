@@ -1,6 +1,6 @@
 """Ein Lauf: bei Relic nachsehen, neue Spiele speichern, in Discord melden,
-Ranglisten-Nachricht aktualisieren. Der Timer auf dem Pi startet das alle
-15 Minuten.
+Ranglisten-Nachricht aktualisieren. Der Timer auf dem Pi startet das jeden
+Montag um 7 Uhr, /ladder in Discord sofort.
 
 Reihenfolge mit Absicht: Erst werden neue Spiele gespeichert, dann wird
 gemeldet. Faellt Discord aus, sind die Spiele trotzdem gesichert, und der

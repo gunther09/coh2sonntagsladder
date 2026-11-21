@@ -1,13 +1,16 @@
 [Unit]
-Description=CoH2-Sonntagsladder alle 15 Minuten
+Description=CoH2-Sonntagsladder jeden Montag um 7 Uhr
 
 [Timer]
-# Relic haelt nur die letzten 10 Custom Games je Spieler. 15 Minuten sind
-# grosszuegig sicher und melden ein Ergebnis zeitnah nach Spielende.
-OnCalendar=*:0/15
-OnBootSec=3min
+# Gespielt wird sonntags, montags frueh kommt die Auswertung. Dazwischen
+# aktualisiert /ladder in Discord (Elternabend-Bot) sofort.
+# Relic haelt je Spieler die letzten 10 Custom Games. Ein Spiel geht erst
+# verloren, wenn alle vier seither 10 neuere Custom Games gespielt haben -
+# bei einem Spieltag pro Woche kein Thema.
+OnCalendar=Mon *-*-* 07:00
+# Pi war Montag frueh aus: Lauf beim naechsten Start nachholen
 Persistent=true
-RandomizedDelaySec=60
+RandomizedDelaySec=2min
 
 [Install]
 WantedBy=timers.target

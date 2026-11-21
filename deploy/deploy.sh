@@ -50,7 +50,7 @@ systemctl daemon-reload
 systemctl enable --now "$NAME.timer"
 
 # Einmal sofort laufen lassen. Ein Fehler hier bricht das Deployment nicht ab,
-# der Timer versucht es in 15 Minuten wieder.
+# der Timer versucht es am naechsten Montag wieder (oder /ladder in Discord).
 echo "Lauf ..."
 systemctl start "$NAME.service" || echo "WARNUNG: Lauf fehlgeschlagen, siehe journalctl -u $NAME"
 journalctl -u "$NAME" -n 5 --no-pager -o cat || true

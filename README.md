@@ -6,7 +6,8 @@ automatisch in einem Discord-Kanal.
 
 ## Wie es funktioniert
 
-- Alle 15 Minuten fragt ein systemd-Timer die öffentliche Relic-Schnittstelle
+- Jeden Montag um 7 Uhr (und sofort per `/ladder` in Discord, über den
+  Elternabend-Bot) fragt ein systemd-Timer die öffentliche Relic-Schnittstelle
   ab (`getRecentMatchHistoryByProfileId`, ohne Schlüssel) – je Spieler.
 - Gewertet wird nur ein **Custom Game mit genau diesen vier Spielern**,
   zwei gegen zwei, mit eindeutigem Sieger. Automatch, Spiele mit anderen
@@ -45,7 +46,7 @@ python -m venv .venv
 | Code | `/opt/coh2-sonntagsladder/app/sonntagsladder` |
 | Spiele und Zustand | `/var/lib/coh2-sonntagsladder/zustand.json` – **das einzig Unersetzliche** |
 | Webhook-URL (geheim) | `/etc/coh2-sonntagsladder/webhook.env`, root-only, nie im Repo |
-| Dienst / Timer | `coh2-sonntagsladder.service` (oneshot), `coh2-sonntagsladder.timer` (alle 15 min) |
+| Dienst / Timer | `coh2-sonntagsladder.service` (oneshot), `coh2-sonntagsladder.timer` (montags 7 Uhr) |
 | Benutzer | `coh2ladder` (Systembenutzer ohne Login) |
 
 ```bash
