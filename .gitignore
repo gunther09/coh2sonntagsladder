@@ -1,0 +1,7 @@
+# Lokale Spieldaten und Geheimnisse - nie committen
+daten/
+*.env
+
+.venv/
+__pycache__/
+.pytest_cache/

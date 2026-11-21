@@ -1,0 +1,30 @@
+[Unit]
+Description=CoH2-Sonntagsladder: Spiele bei Relic holen und in Discord melden
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=coh2ladder
+Group=coh2ladder
+WorkingDirectory=/opt/coh2-sonntagsladder/app
+ExecStart=/usr/bin/python3 -m sonntagsladder
+Environment=COH2_DATEN=/var/lib/coh2-sonntagsladder
+Environment=PYTHONDONTWRITEBYTECODE=1
+# COH2_WEBHOOK_URL=... (Geheimnis, nur auf dem Pi, root-only). Fehlt die
+# Datei oder die Zeile, sammelt der Dienst nur und meldet nichts.
+EnvironmentFile=-/etc/coh2-sonntagsladder/webhook.env
+TimeoutStartSec=5min
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/coh2-sonntagsladder
+MemoryMax=128M
+CPUQuota=50%

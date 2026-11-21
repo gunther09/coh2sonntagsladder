@@ -1,0 +1,13 @@
+[Unit]
+Description=CoH2-Sonntagsladder alle 15 Minuten
+
+[Timer]
+# Relic haelt nur die letzten 10 Custom Games je Spieler. 15 Minuten sind
+# grosszuegig sicher und melden ein Ergebnis zeitnah nach Spielende.
+OnCalendar=*:0/15
+OnBootSec=3min
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
