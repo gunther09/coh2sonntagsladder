@@ -13,6 +13,9 @@ DISCORD_LIMIT = 2000
 LETZTE_SPIELE = 5
 NEUE_SPIELE_MAX = 10
 TITEL = "🏆 **CoH2-Sonntagsladder** · 2 vs 2, Custom Games"
+# Den Befehl stellt der Elternabend-Bot im selben Server bereit (Repo DiscordBot),
+# er startet nur den Dienst dieser Ladder auf dem Pi.
+AKTUALISIEREN = "Sofort aktualisieren: `/ladder` hier im Chat eingeben"
 
 try:
     from zoneinfo import ZoneInfo
@@ -112,11 +115,13 @@ def ranglisten_text(spiele: Iterable[liga.Spiel], jetzt: int) -> str:
             "Noch keine Spiele erfasst. Sobald die vier ein Custom Game 2 vs 2 gegeneinander "
             "beendet haben, steht es hier.",
             f"-# Stand {datum_zeit(jetzt)} · Daten von Relic, geprüft alle 15 Minuten",
+            f"-# {AKTUALISIEREN}",
         ])
 
     fuss = (
         f"-# {len(alle)} Spiele seit {datum(alle[0].ende)} · Stand {datum_zeit(jetzt)} · "
-        "Daten von Relic, geprüft alle 15 Minuten"
+        "Daten von Relic, geprüft alle 15 Minuten\n"
+        f"-# {AKTUALISIEREN}"
     )
     for anzahl_letzte in range(LETZTE_SPIELE, -1, -1):
         teile = [TITEL, "**Spieler**", spielertabelle(alle), "**Teams**", teamtabelle(alle)]

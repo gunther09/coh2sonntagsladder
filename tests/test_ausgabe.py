@@ -15,6 +15,7 @@ def _spiele(anzahl, sieger_ab=None):
 def test_rangliste_ohne_spiele():
     text = ausgabe.ranglisten_text([], JETZT)
     assert "Noch keine Spiele" in text
+    assert "`/ladder`" in text
     assert len(text) <= ausgabe.DISCORD_LIMIT
 
 
@@ -25,6 +26,7 @@ def test_rangliste_mit_tabellen_und_letzten_spielen():
     assert "Ace + DiplomAgronom" in text
     assert text.count("schlagen") == ausgabe.LETZTE_SPIELE
     assert "10 Spiele seit" in text
+    assert "`/ladder`" in text, "alle im Kanal sollen sehen, wie man aktualisiert"
     assert len(text) <= ausgabe.DISCORD_LIMIT
 
 
