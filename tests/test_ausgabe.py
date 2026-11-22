@@ -208,9 +208,9 @@ def test_fusszeile_nennt_die_code_version(tmp_path, monkeypatch):
 
     datei = tmp_path / "version.txt"
     monkeypatch.setattr(version, "DATEI", datei)
-    assert version.code_version(datei) == "Code-Version dev", "lokal ohne Deploy"
+    assert version.code_version(datei) == "code v.dev", "lokal ohne Deploy"
 
     datei.write_text("11 22.11.2026\n", encoding="utf-8")
     monkeypatch.setattr(version.code_version, "__defaults__", (datei,))
     fuss = ausgabe.ranglisten_nachricht(_spiele(3), JETZT)["embeds"][-1]["footer"]["text"]
-    assert fuss.endswith("\nCode-Version 11, 22.11.2026")
+    assert fuss.endswith("\ncode v.11, 22.11.2026")
