@@ -59,7 +59,7 @@ def test_neues_spiel_wird_gemeldet_und_rangliste_bearbeitet(speicher):
 
     assert (ergebnis.neu, ergebnis.gemeldet, ergebnis.rangliste) == (1, 1, "aktualisiert")
     assert len(discord.gesendet) == 2
-    assert discord.gesendet[1].startswith("⚔️ **Neues Spiel**")
+    assert "== ⚔️ Neues Spiel ==" in discord.gesendet[1]
     assert discord.bearbeitet == ["1001"]
 
     # Nichts Neues: keine weitere Meldung, nur die Rangliste wird aufgefrischt
@@ -67,6 +67,21 @@ def test_neues_spiel_wird_gemeldet_und_rangliste_bearbeitet(speicher):
     assert (ergebnis.neu, ergebnis.gemeldet) == (0, 0)
     assert len(discord.gesendet) == 2
     assert discord.bearbeitet == ["1001", "1001"]
+
+
+def test_spiel_in_anderer_besetzung_wird_gespeichert_aber_nicht_gemeldet(speicher):
+    discord = FakeDiscord()
+    relic = FakeRelic([relic_spiel(1)])
+    _lauf(speicher, relic, discord)
+
+    relic.spiele.append(relic_spiel(2, sieger=(UBACK, ACE), verlierer=(BELLA, 111615)))
+    ergebnis = _lauf(speicher, relic, discord)
+
+    assert (ergebnis.neu, ergebnis.gemeldet) == (1, 0)
+    assert len(discord.gesendet) == 1, "keine Meldung, nur die Rangliste"
+    zustand = speicher.laden()
+    assert 2 in zustand.spiele and 2 in zustand.gemeldet
+    assert "1 : 0" in discord.nachrichten["1001"], "Rangliste zaehlt nur das Teamduell"
 
 
 def test_ein_spiel_aus_vier_historien_zaehlt_einmal(speicher):

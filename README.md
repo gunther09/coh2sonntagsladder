@@ -16,8 +16,11 @@ automatisch in einem Discord-Kanal.
 - Neue Spiele werden in einer JSON-Datei gespeichert und per **Discord-Webhook**
   gemeldet. Eine **Ranglisten-Nachricht** im Kanal wird bei jedem Lauf
   aktualisiert (einmal von Hand anheften).
-- Wertung: Siege, Niederlagen, Quote und aktuelle Serie je Spieler und je
-  Team, dazu der direkte Vergleich und die letzten Spiele.
+- Gezeigt wird nur das Duell der zwei festen Teams (**Ace & DiplomAgronom**
+  gegen **Bella & UBack**, in `spieler.TEAMS`), als Discord-Embeds: oben die
+  Gesamtwertung mit Serie und Verlauf, dann **Achse oder Alliierte** (wer
+  gewinnt mit welcher Seite, Stand je Paarung), unten die letzten Spiele als
+  Tabelle. Spiele in anderer Besetzung werden gespeichert, aber nicht gezeigt.
 
 **Grenze:** Relic hält je Spieler nur die letzten 10 Spiele pro Modus. Was
 älter ist, gibt es nirgends mehr (auch coh2stats.com zeigt Custom Games

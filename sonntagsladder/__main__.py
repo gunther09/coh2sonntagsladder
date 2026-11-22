@@ -45,16 +45,17 @@ def main(argv: list[str] | None = None) -> int:
     speicher = Speicher(os.environ.get("COH2_DATEN") or "daten")
 
     if args.zeigen:
-        print(ausgabe.ranglisten_text(speicher.laden().spiele.values(), int(time.time())))
+        print(ausgabe.als_text(ausgabe.ranglisten_nachricht(speicher.laden().spiele.values(), int(time.time()))))
         return 0
 
     if args.trocken:
         spiele = liga.chronologisch(hole_spiele().values())
         print(f"{len(spiele)} Ladder-Spiele bei Relic gefunden\n")
-        if spiele:
-            print(ausgabe.neue_spiele_text(spiele[-1:], spiele))
+        meldung = ausgabe.neue_spiele_nachricht(spiele[-1:], spiele)
+        if meldung:
+            print(ausgabe.als_text(meldung))
             print()
-        print(ausgabe.ranglisten_text(spiele, int(time.time())))
+        print(ausgabe.als_text(ausgabe.ranglisten_nachricht(spiele, int(time.time()))))
         return 0
 
     exitcode = 0

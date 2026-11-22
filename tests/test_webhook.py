@@ -70,6 +70,18 @@ def test_bearbeiten_mit_thread_parameter(netz):
     assert anfragen[0].full_url == URL + "/messages/42?thread_id=7"
 
 
+def test_embeds_ersetzen_beim_bearbeiten_den_alten_text(netz):
+    anfragen, antworten = netz
+    antworten.append({"id": "42"})
+
+    webhook.bearbeiten(URL, "42", {"embeds": [{"title": "Rangliste"}]})
+
+    nutzlast = json.loads(anfragen[0].data)
+    assert nutzlast["content"] == "", "alter Text der Nachricht muss weg"
+    assert nutzlast["embeds"] == [{"title": "Rangliste"}]
+    assert nutzlast["allowed_mentions"] == {"parse": []}
+
+
 def test_geloeschte_nachricht(netz):
     _anfragen, antworten = netz
     antworten.append(_http_fehler(404))

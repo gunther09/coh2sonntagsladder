@@ -74,8 +74,25 @@ class FakeRelic:
         return antwort(*eigene)
 
 
+def pruefe_discord_grenzen(nachricht: dict) -> None:
+    """Was Discord bei Webhook-Nachrichten ablehnen wuerde."""
+    from sonntagsladder.ausgabe import embed_laenge
+
+    assert len(nachricht.get("content", "")) <= 2000
+    embeds = nachricht.get("embeds", [])
+    assert len(embeds) <= 10
+    assert sum(map(embed_laenge, embeds)) <= 6000
+    for embed in embeds:
+        assert len(embed.get("title", "")) <= 256
+        assert len(embed.get("description", "")) <= 4096
+        assert len(embed.get("fields", [])) <= 25
+        for feld in embed.get("fields", []):
+            assert 0 < len(feld["name"]) <= 256 and 0 < len(feld["value"]) <= 1024
+
+
 class FakeDiscord:
-    """Webhook-Ersatz: merkt sich gesendete und bearbeitete Nachrichten."""
+    """Webhook-Ersatz: merkt sich gesendete und bearbeitete Nachrichten
+    (als Textfassung, damit Tests einfach nach Inhalten suchen koennen)."""
 
     def __init__(self):
         self.nachrichten: dict[str, str] = {}
@@ -84,21 +101,24 @@ class FakeDiscord:
         self.naechste_id = 1000
         self.senden_fehler: Exception | None = None
 
-    def senden(self, url: str, text: str) -> str:
+    def senden(self, url: str, nachricht: dict) -> str:
+        from sonntagsladder.ausgabe import als_text
+
         if self.senden_fehler is not None:
             raise self.senden_fehler
-        assert len(text) <= 2000, "Discord nimmt hoechstens 2000 Zeichen"
+        pruefe_discord_grenzen(nachricht)
         self.naechste_id += 1
         nachricht_id = str(self.naechste_id)
-        self.nachrichten[nachricht_id] = text
-        self.gesendet.append(text)
+        self.nachrichten[nachricht_id] = als_text(nachricht)
+        self.gesendet.append(als_text(nachricht))
         return nachricht_id
 
-    def bearbeiten(self, url: str, nachricht_id: str, text: str) -> None:
+    def bearbeiten(self, url: str, nachricht_id: str, nachricht: dict) -> None:
+        from sonntagsladder.ausgabe import als_text
         from sonntagsladder.webhook import NachrichtFehlt
 
         if nachricht_id not in self.nachrichten:
             raise NachrichtFehlt("weg")
-        assert len(text) <= 2000
-        self.nachrichten[nachricht_id] = text
+        pruefe_discord_grenzen(nachricht)
+        self.nachrichten[nachricht_id] = als_text(nachricht)
         self.bearbeitet.append(nachricht_id)

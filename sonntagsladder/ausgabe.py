@@ -1,5 +1,13 @@
-"""Texte fuer Discord: die angeheftete Ranglisten-Nachricht und die Meldung
-zu neuen Spielen. Discord erlaubt hoechstens 2000 Zeichen je Nachricht."""
+"""Nachrichten fuer Discord: die angeheftete Ranglisten-Nachricht und die
+Meldung zu neuen Spielen, beide als Embeds.
+
+Gezeigt wird nur das feste Duell der beiden Teams aus spieler.TEAMS: oben die
+Gesamtwertung, dann Achse gegen Alliierte, unten die letzten Spiele.
+
+Eine Nachricht ist ein dict im Format der Discord-Webhook-API
+({"content": ..., "embeds": [...]}); webhook.py schickt es unveraendert.
+Discord-Grenzen: Beschreibung 4096, Feldwert 1024, alles zusammen 6000 Zeichen.
+"""
 
 from __future__ import annotations
 
@@ -7,15 +15,21 @@ from datetime import datetime, timezone
 from typing import Iterable
 
 from . import liga
-from .spieler import fraktion, name
+from .spieler import TEAM_EMOJI, TEAM_FARBE, TEAMS, kurzname, name
 
-DISCORD_LIMIT = 2000
-LETZTE_SPIELE = 5
+TITEL = "🏆 CoH2-Sonntagsladder"
+LETZTE_SPIELE = 10
+VERLAUF_MAX = 20
 NEUE_SPIELE_MAX = 10
-TITEL = "🏆 **CoH2-Sonntagsladder** · 2 vs 2, Custom Games"
+KARTE_MAX = 16
+FARBE_NEUTRAL = 0x6B7280
 # Den Befehl stellt der Elternabend-Bot im selben Server bereit (Repo DiscordBot),
 # er startet nur den Dienst dieser Ladder auf dem Pi.
-AKTUALISIEREN = "Sofort aktualisieren: `/ladder` hier im Chat eingeben"
+AKTUALISIEREN = "Sofort aktualisieren: /ladder"
+
+EMBED_GESAMT = 6000
+BESCHREIBUNG_MAX = 4096
+FELDWERT_MAX = 1024
 
 try:
     from zoneinfo import ZoneInfo
@@ -39,111 +53,205 @@ def datum(unix: int) -> str:
 
 
 def _markdown(text: str) -> str:
-    for zeichen in ("\\", "*", "_", "~", "|", "`", ">"):
+    for zeichen in ("\\", "*", "_", "~", "|", "`", ">", "#"):
         text = text.replace(zeichen, "\\" + zeichen)
     return text
 
 
 def teamname(team: Iterable[int]) -> str:
-    return " + ".join(name(profil_id) for profil_id in team)
+    """'Ace & DiplomAgronom' (ohne Markdown)."""
+    return " & ".join(name(profil_id) for profil_id in team)
 
 
-def _team_mit_fraktionen(spiel: liga.Spiel, team: tuple[int, ...], *, fett: bool) -> str:
-    teile = []
-    for profil_id in team:
-        spielername = _markdown(name(profil_id))
-        if fett:
-            spielername = f"**{spielername}**"
-        race_id = spiel.race_id(profil_id)
-        teile.append(f"{spielername} ({fraktion(race_id)})" if race_id is not None else spielername)
-    return " + ".join(teile)
+def kurzer_teamname(team: Iterable[int]) -> str:
+    """'Ace+Diplom' fuer die Tabelle."""
+    return "+".join(kurzname(profil_id) for profil_id in team)
 
 
-def _quote(bilanz: liga.Bilanz) -> str:
-    return "-" if bilanz.quote is None else f"{bilanz.quote * 100:.0f}%"
+def _team(index: int, *, fett: bool = True) -> str:
+    text = _markdown(teamname(TEAMS[index]))
+    return f"{TEAM_EMOJI[index]} **{text}**" if fett else f"{TEAM_EMOJI[index]} {text}"
+
+
+def _prozent(siege: int, spiele: int) -> str:
+    return "–" if not spiele else f"{siege * 100 / spiele:.0f} %"
 
 
 def _serie(bilanz: liga.Bilanz) -> str:
     serie = bilanz.serie
     if serie is None:
-        return "-"
+        return "–"
     sieg, laenge = serie
-    return f"{laenge}{'S' if sieg else 'N'}"
+    if sieg:
+        return "1 Sieg" if laenge == 1 else f"{laenge} Siege in Folge"
+    return "1 Niederlage" if laenge == 1 else f"{laenge} Niederlagen in Folge"
 
 
-def _tabelle(kopf: list[str], zeilen: list[list[str]], rechtsbuendig: set[int]) -> str:
+def _kuerzen(text: str, laenge: int) -> str:
+    return text if len(text) <= laenge else text[: laenge - 1] + "…"
+
+
+def _tabelle(kopf: list[str], zeilen: list[list[str]]) -> str:
     breiten = [max(len(str(z[i])) for z in [kopf, *zeilen]) for i in range(len(kopf))]
 
     def zeile(werte):
-        zellen = [
-            str(w).rjust(breiten[i]) if i in rechtsbuendig else str(w).ljust(breiten[i])
-            for i, w in enumerate(werte)
-        ]
-        return "  ".join(zellen).rstrip()
+        return "  ".join(str(w).ljust(breiten[i]) for i, w in enumerate(werte)).rstrip()
 
     return "```\n" + "\n".join([zeile(kopf), *(zeile(z) for z in zeilen)]) + "\n```"
 
 
-def spielertabelle(spiele: list[liga.Spiel]) -> str:
-    zeilen = [
-        [f"{platz}.", name(profil_id), b.spiele, b.siege, b.niederlagen, _quote(b), _serie(b)]
-        for platz, profil_id, b in liga.spielerrangliste(spiele)
+def _fuss(duell: liga.Duell, jetzt: int) -> dict:
+    teile = []
+    if duell.spiele:
+        teile.append(f"{len(duell.spiele)} Spiele seit {datum(duell.spiele[0].ende)}")
+    teile += [f"Stand {datum_zeit(jetzt)}", "automatisch montags 7 Uhr", AKTUALISIEREN]
+    return {"text": " · ".join(teile)}
+
+
+# --- Ranglisten-Nachricht ----------------------------------------------------
+
+
+def _gesamt_embed(duell: liga.Duell) -> dict:
+    a, b = duell.bilanzen
+    if a.siege == b.siege:
+        fuehrung, farbe = "Gleichstand.", FARBE_NEUTRAL
+    else:
+        vorne = 0 if a.siege > b.siege else 1
+        abstand = abs(a.siege - b.siege)
+        fuehrung = f"{_team(vorne)} führen mit {abstand} {'Sieg' if abstand == 1 else 'Siegen'} Vorsprung."
+        farbe = TEAM_FARBE[vorne]
+
+    felder = [
+        {
+            "name": f"{TEAM_EMOJI[i]} {teamname(TEAMS[i])}",
+            "value": f"**{bilanz.siege}** Siege · {_prozent(bilanz.siege, bilanz.spiele)}\n"
+                     f"Serie: {_serie(bilanz)}",
+            "inline": True,
+        }
+        for i, bilanz in enumerate(duell.bilanzen)
     ]
-    return _tabelle(["Pl", "Spieler", "Sp", "S", "N", "Quote", "Serie"], zeilen, {0, 2, 3, 4, 5})
+    letzte = duell.spiele[-VERLAUF_MAX:]
+    felder.append({
+        "name": f"Verlauf · letzte {len(letzte)}, neuestes rechts",
+        "value": "".join(TEAM_EMOJI[liga.sieger_index(s)] for s in letzte),
+        "inline": False,
+    })
+    return {
+        "title": f"{TITEL} · Gesamtwertung",
+        "description": f"## {TEAM_EMOJI[0]}  {a.siege} : {b.siege}  {TEAM_EMOJI[1]}\n{fuehrung}",
+        "color": farbe,
+        "fields": felder,
+    }
 
 
-def teamtabelle(spiele: list[liga.Spiel]) -> str:
-    zeilen = [
-        [teamname(team), b.spiele, b.siege, b.niederlagen, _quote(b)]
-        for _platz, team, b in liga.teamrangliste(spiele)
-    ]
-    return _tabelle(["Team", "Sp", "S", "N", "Quote"], zeilen, {1, 2, 3, 4})
+_SEITEN_TITEL = {"Achse": "Mit Achse", "Alliierte": "Mit Alliierten", liga.GEMISCHT: "Gemischt"}
 
 
-def spielzeile(spiel: liga.Spiel) -> str:
-    return (
-        f"`{datum_zeit(spiel.ende)}` **{_markdown(teamname(spiel.sieger))}** schlagen "
-        f"{_markdown(teamname(spiel.verlierer))} · {liga.kartenname(spiel.karte)}"
-    )
+def _seiten_embed(duell: liga.Duell) -> dict:
+    felder = []
+    for seite_name in ("Achse", "Alliierte", liga.GEMISCHT):
+        eintraege = [
+            (i, duell.nach_seite[i][seite_name]) for i in (0, 1) if seite_name in duell.nach_seite[i]
+        ]
+        if not eintraege:
+            continue
+        # Rangliste je Seite: bessere Quote zuerst, bei Gleichstand Reihenfolge aus TEAMS
+        eintraege.sort(key=lambda paar: (-(paar[1].quote or 0), -paar[1].siege, paar[0]))
+        felder.append({
+            "name": _SEITEN_TITEL[seite_name],
+            "value": "\n".join(
+                f"{TEAM_EMOJI[i]} **{b.siege}** von {b.spiele} · {_prozent(b.siege, b.spiele)}"
+                for i, b in eintraege
+            ),
+            "inline": True,
+        })
+
+    paarungen = []
+    for (seite_a, seite_b), (siege_a, siege_b) in sorted(
+        duell.paarungen.items(), key=lambda paar: -sum(paar[1])
+    ):
+        paarungen.append(
+            f"{TEAM_EMOJI[0]} {seite_a} gegen {TEAM_EMOJI[1]} {seite_b}: **{siege_a} : {siege_b}**"
+        )
+    if paarungen:
+        felder.append({"name": "Paarungen", "value": "\n".join(paarungen), "inline": False})
+
+    achse, alliierte = duell.seiten["Achse"], duell.seiten["Alliierte"]
+    if achse[1]:
+        felder.append({
+            "name": "Welche Seite gewinnt?",
+            "value": f"Achse {achse[0]} · Alliierte {alliierte[0]} "
+                     f"(von {achse[1]} Spielen Achse gegen Alliierte)",
+            "inline": False,
+        })
+    return {"title": "⚔️ Achse oder Alliierte", "color": FARBE_NEUTRAL, "fields": felder}
 
 
-def ranglisten_text(spiele: Iterable[liga.Spiel], jetzt: int) -> str:
-    alle = liga.chronologisch(spiele)
-    if not alle:
-        return "\n".join([
-            TITEL,
-            "Noch keine Spiele erfasst. Sobald die vier ein Custom Game 2 vs 2 gegeneinander "
-            "beendet haben, steht es hier.",
-            f"-# Stand {datum_zeit(jetzt)} · automatisch jeden Montag 7 Uhr",
-            f"-# {AKTUALISIEREN}",
+def letzte_spiele_tabelle(duell: liga.Duell, anzahl: int = LETZTE_SPIELE) -> str:
+    zeilen = []
+    for spiel in reversed(duell.spiele[-anzahl:]):
+        zeilen.append([
+            _zeit(spiel.ende).strftime("%d.%m."),
+            kurzer_teamname(TEAMS[liga.sieger_index(spiel)]),
+            liga.team_seite(spiel, spiel.sieger),
+            _kuerzen(liga.kartenname(spiel.karte), KARTE_MAX),
         ])
-
-    fuss = (
-        f"-# {len(alle)} Spiele seit {datum(alle[0].ende)} · Stand {datum_zeit(jetzt)} · "
-        "automatisch jeden Montag 7 Uhr\n"
-        f"-# {AKTUALISIEREN}"
-    )
-    for anzahl_letzte in range(LETZTE_SPIELE, -1, -1):
-        teile = [TITEL, "**Spieler**", spielertabelle(alle), "**Teams**", teamtabelle(alle)]
-        if anzahl_letzte:
-            teile.append("**Letzte Spiele**")
-            teile.extend(spielzeile(s) for s in reversed(alle[-anzahl_letzte:]))
-        teile.append(fuss)
-        text = "\n".join(teile)
-        if len(text) <= DISCORD_LIMIT:
-            return text
-    return text[: DISCORD_LIMIT - 1] + "…"
+    return _tabelle(["Datum", "Sieger", "als", "Karte"], zeilen)
 
 
-def neue_spiele_text(neue: Iterable[liga.Spiel], alle: Iterable[liga.Spiel]) -> str:
-    neue = liga.chronologisch(neue)
-    alle = list(alle)
-    ueberschrift = "⚔️ **Neues Spiel**" if len(neue) == 1 else f"⚔️ **{len(neue)} neue Spiele**"
-    zeilen = [ueberschrift]
+def _letzte_embed(duell: liga.Duell, jetzt: int, anzahl: int) -> dict:
+    return {
+        "title": "📜 Letzte Spiele",
+        "description": letzte_spiele_tabelle(duell, anzahl),
+        "color": FARBE_NEUTRAL,
+        "footer": _fuss(duell, jetzt),
+    }
+
+
+def embed_laenge(embed: dict) -> int:
+    """So zaehlt Discord fuer die 6000-Zeichen-Grenze."""
+    laenge = len(embed.get("title", "")) + len(embed.get("description", ""))
+    laenge += len(embed.get("footer", {}).get("text", ""))
+    for feld in embed.get("fields", []):
+        laenge += len(feld["name"]) + len(feld["value"])
+    return laenge
+
+
+def ranglisten_nachricht(spiele: Iterable[liga.Spiel], jetzt: int) -> dict:
+    duell = liga.duell_auswerten(spiele)
+    if not duell.spiele:
+        return {"content": "", "embeds": [{
+            "title": TITEL,
+            "description": f"Noch keine Spiele erfasst. Sobald {_team(0)} und {_team(1)} ein "
+                           "Custom Game gegeneinander beendet haben, steht es hier.",
+            "color": FARBE_NEUTRAL,
+            "footer": _fuss(duell, jetzt),
+        }]}
+
+    for anzahl in range(LETZTE_SPIELE, 0, -1):
+        embeds = [_gesamt_embed(duell), _seiten_embed(duell), _letzte_embed(duell, jetzt, anzahl)]
+        if sum(map(embed_laenge, embeds)) <= EMBED_GESAMT:
+            break
+    return {"content": "", "embeds": embeds}
+
+
+# --- Meldung neuer Spiele ----------------------------------------------------
+
+
+def neue_spiele_nachricht(neue: Iterable[liga.Spiel], alle: Iterable[liga.Spiel]) -> dict | None:
+    """None, wenn unter den neuen Spielen kein Duell der beiden Teams ist."""
+    neue = liga.teamduelle(neue)
+    if not neue:
+        return None
+    duell = liga.duell_auswerten(alle)
+
+    zeilen = []
     for spiel in neue[:NEUE_SPIELE_MAX]:
+        gewinner = liga.sieger_index(spiel)
+        verlierer = 1 - gewinner
         zeilen.append(
-            f"{_team_mit_fraktionen(spiel, spiel.sieger, fett=True)} schlagen "
-            f"{_team_mit_fraktionen(spiel, spiel.verlierer, fett=False)}"
+            f"{_team(gewinner)} ({liga.team_seite(spiel, TEAMS[gewinner])}) schlagen "
+            f"{_team(verlierer, fett=False)} ({liga.team_seite(spiel, TEAMS[verlierer])})"
         )
         zeilen.append(
             f"-# {datum_zeit(spiel.ende)} · {liga.kartenname(spiel.karte)} · {spiel.dauer_minuten} min"
@@ -151,21 +259,27 @@ def neue_spiele_text(neue: Iterable[liga.Spiel], alle: Iterable[liga.Spiel]) -> 
     if len(neue) > NEUE_SPIELE_MAX:
         zeilen.append(f"… und {len(neue) - NEUE_SPIELE_MAX} weitere")
 
-    # Stand im direkten Duell, je Paarung einmal (bei festen Teams genau eine Zeile)
-    gesehen = set()
-    for spiel in neue:
-        paarung = frozenset((spiel.sieger, spiel.verlierer))
-        if paarung in gesehen:
-            continue
-        gesehen.add(paarung)
-        team_a, team_b = spiel.sieger, spiel.verlierer
-        siege_a, siege_b = liga.duell(alle, team_a, team_b)
-        if siege_b > siege_a:
-            team_a, team_b, siege_a, siege_b = team_b, team_a, siege_b, siege_a
-        zeilen.append(
-            f"Stand im Duell: **{_markdown(teamname(team_a))}** {siege_a} : {siege_b} "
-            f"{_markdown(teamname(team_b))}"
-        )
+    a, b = duell.bilanzen
+    zeilen.append(f"\nGesamtstand: {TEAM_EMOJI[0]} **{a.siege} : {b.siege}** {TEAM_EMOJI[1]}")
+    return {"content": "", "embeds": [{
+        "title": "⚔️ Neues Spiel" if len(neue) == 1 else f"⚔️ {len(neue)} neue Spiele",
+        "description": "\n".join(zeilen)[:BESCHREIBUNG_MAX],
+        "color": TEAM_FARBE[liga.sieger_index(neue[-1])],
+    }]}
 
-    text = "\n".join(zeilen)
-    return text if len(text) <= DISCORD_LIMIT else text[: DISCORD_LIMIT - 1] + "…"
+
+# --- Vorschau in der Konsole -------------------------------------------------
+
+
+def als_text(nachricht: dict) -> str:
+    """Grobe Textfassung einer Nachricht, fuer --zeigen/--trocken und Tests."""
+    teile = [nachricht.get("content") or ""]
+    for embed in nachricht.get("embeds", []):
+        teile.append(f"== {embed.get('title', '')} ==")
+        if embed.get("description"):
+            teile.append(embed["description"])
+        for feld in embed.get("fields", []):
+            teile.append(f"[{feld['name']}]\n{feld['value']}")
+        if embed.get("footer"):
+            teile.append(f"-- {embed['footer']['text']}")
+    return "\n".join(t for t in teile if t)

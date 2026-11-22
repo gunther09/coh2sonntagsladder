@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from .spieler import SPIELER
+from .spieler import SPIELER, TEAMS, seite
 
 MATCHTYPE_CUSTOM = 0
 RESULT_NIEDERLAGE = 0
@@ -252,3 +252,67 @@ def duell(spiele: Iterable[Spiel], team_a: tuple[int, ...], team_b: tuple[int, .
         elif (spiel.sieger, spiel.verlierer) == (b, a):
             siege_b += 1
     return siege_a, siege_b
+
+
+# --- Das feste Duell: zwei Teams, Achse oder Alliierte -----------------------
+
+GEMISCHT = "gemischt"
+
+
+def team_seite(spiel: Spiel, team: Iterable[int]) -> str:
+    """'Achse', 'Alliierte' oder 'gemischt' (z.B. Wehrmacht + USF im Custom Game)."""
+    seiten = {seite(spiel.race_id(profil_id)) for profil_id in team}
+    if len(seiten) == 1 and None not in seiten:
+        return seiten.pop()
+    return GEMISCHT
+
+
+def ist_teamduell(spiel: Spiel, teams: tuple[tuple[int, ...], ...] = TEAMS) -> bool:
+    """Spielen genau die beiden festen Teams gegeneinander?"""
+    paarung = {frozenset(spiel.sieger), frozenset(spiel.verlierer)}
+    return paarung == {frozenset(team) for team in teams}
+
+
+def teamduelle(spiele: Iterable[Spiel], teams: tuple[tuple[int, ...], ...] = TEAMS) -> list[Spiel]:
+    return [spiel for spiel in chronologisch(spiele) if ist_teamduell(spiel, teams)]
+
+
+def sieger_index(spiel: Spiel, teams: tuple[tuple[int, ...], ...] = TEAMS) -> int:
+    """0 oder 1: welches der festen Teams hat gewonnen."""
+    return 0 if frozenset(spiel.sieger) == frozenset(teams[0]) else 1
+
+
+@dataclass
+class Duell:
+    """Auswertung des festen Duells, Index 0/1 wie in TEAMS."""
+
+    spiele: list[Spiel]
+    bilanzen: tuple[Bilanz, Bilanz]
+    # je Team: Seite -> Bilanz (nur Seiten, mit denen das Team gespielt hat)
+    nach_seite: tuple[dict[str, Bilanz], dict[str, Bilanz]]
+    # (Seite Team 0, Seite Team 1) -> [Siege Team 0, Siege Team 1]
+    paarungen: dict[tuple[str, str], list[int]]
+    # Seite -> [Siege, Spiele] ueber beide Teams, nur Spiele Achse gegen Alliierte
+    seiten: dict[str, list[int]]
+
+
+def duell_auswerten(spiele: Iterable[Spiel], teams: tuple[tuple[int, ...], ...] = TEAMS) -> Duell:
+    duelle = teamduelle(spiele, teams)
+    bilanzen = (Bilanz(), Bilanz())
+    nach_seite: tuple[dict[str, Bilanz], dict[str, Bilanz]] = ({}, {})
+    paarungen: dict[tuple[str, str], list[int]] = {}
+    seiten = {"Achse": [0, 0], "Alliierte": [0, 0]}
+    for spiel in duelle:
+        gewinner = sieger_index(spiel, teams)
+        team_seiten = tuple(team_seite(spiel, team) for team in teams)
+        for index in (0, 1):
+            sieg = index == gewinner
+            bilanzen[index].verlauf.append(sieg)
+            nach_seite[index].setdefault(team_seiten[index], Bilanz()).verlauf.append(sieg)
+        paarungen.setdefault(team_seiten, [0, 0])[gewinner] += 1
+        if set(team_seiten) == {"Achse", "Alliierte"}:
+            for index in (0, 1):
+                eintrag = seiten[team_seiten[index]]
+                eintrag[1] += 1
+                eintrag[0] += index == gewinner
+    return Duell(duelle, bilanzen, nach_seite, paarungen, seiten)

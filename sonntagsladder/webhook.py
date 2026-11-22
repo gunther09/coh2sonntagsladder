@@ -82,23 +82,31 @@ def _anfrage(methode: str, url: str, nutzlast: dict, *, fehlt_ist_nachricht: boo
     raise WebhookFehler("Discord drosselt (HTTP 429), spaeter erneut")
 
 
-def _nutzlast(text: str) -> dict:
+def _nutzlast(nachricht: dict | str) -> dict:
+    """Text oder fertige Nachricht ({"content", "embeds"}) -> Webhook-Nutzlast.
+
+    Ohne "embeds" wird beim Bearbeiten ein frueheres Embed nicht geloescht,
+    ohne "content" ein frueherer Text nicht - deshalb beides immer setzen."""
+    if isinstance(nachricht, str):
+        nachricht = {"content": nachricht}
+    nutzlast = {"content": "", "embeds": [], **nachricht}
     # Keine @-Erwaehnungen ausloesen, egal was im Text steht.
-    return {"content": text, "allowed_mentions": {"parse": []}}
+    nutzlast["allowed_mentions"] = {"parse": []}
+    return nutzlast
 
 
-def senden(url: str, text: str) -> str:
+def senden(url: str, nachricht: dict | str) -> str:
     """Neue Nachricht, gibt ihre ID zurueck."""
-    antwort = _anfrage("POST", _mit_pfad(url, wait="true"), _nutzlast(text), fehlt_ist_nachricht=False)
+    antwort = _anfrage("POST", _mit_pfad(url, wait="true"), _nutzlast(nachricht), fehlt_ist_nachricht=False)
     if not antwort or "id" not in antwort:
         raise WebhookFehler("Discord hat keine Nachrichten-ID zurueckgegeben")
     return str(antwort["id"])
 
 
-def bearbeiten(url: str, nachricht_id: str, text: str) -> None:
+def bearbeiten(url: str, nachricht_id: str, nachricht: dict | str) -> None:
     _anfrage(
         "PATCH",
         _mit_pfad(url, f"/messages/{int(nachricht_id)}"),
-        _nutzlast(text),
+        _nutzlast(nachricht),
         fehlt_ist_nachricht=True,
     )

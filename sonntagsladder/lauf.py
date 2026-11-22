@@ -58,8 +58,8 @@ def lauf(
     *,
     webhook_url: str | None,
     hole: Callable[[int], dict] = relic.hole_spielhistorie,
-    senden: Callable[[str, str], str] = webhook.senden,
-    bearbeiten: Callable[[str, str, str], None] = webhook.bearbeiten,
+    senden: Callable[[str, dict], str] = webhook.senden,
+    bearbeiten: Callable[[str, str, dict], None] = webhook.bearbeiten,
     jetzt: Callable[[], float] = time.time,
 ) -> Ergebnis:
     zustand = speicher.laden()
@@ -78,12 +78,18 @@ def lauf(
         return Ergebnis(len(neu), len(zustand.spiele), 0, "ohne Webhook")
 
     offen = liga.chronologisch(s for i, s in zustand.spiele.items() if i not in zustand.gemeldet)
+    gemeldet = 0
     if offen:
-        senden(webhook_url, ausgabe.neue_spiele_text(offen, zustand.spiele.values()))
+        # Spiele in anderer Besetzung als den festen Teams werden nicht gemeldet,
+        # gelten aber als erledigt.
+        meldung = ausgabe.neue_spiele_nachricht(offen, zustand.spiele.values())
+        if meldung is not None:
+            senden(webhook_url, meldung)
+            gemeldet = len(liga.teamduelle(offen))
         zustand.gemeldet.update(s.id for s in offen)
         speicher.speichern(zustand)
 
-    text = ausgabe.ranglisten_text(zustand.spiele.values(), int(jetzt()))
+    text = ausgabe.ranglisten_nachricht(zustand.spiele.values(), int(jetzt()))
     status = "aktualisiert"
     if zustand.ranglisten_nachricht:
         try:
@@ -100,4 +106,4 @@ def lauf(
             zustand.ranglisten_nachricht,
         )
 
-    return Ergebnis(len(neu), len(zustand.spiele), len(offen), status)
+    return Ergebnis(len(neu), len(zustand.spiele), gemeldet, status)
