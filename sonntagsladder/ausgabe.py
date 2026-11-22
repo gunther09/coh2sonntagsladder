@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Iterable
 
-from . import liga
+from . import liga, version
 from .spieler import TEAM_EMOJI, TEAM_FARBE, TEAMS, kurzname, name
 
 TITEL = "🏆 CoH2-Sonntagsladder"
@@ -103,7 +103,7 @@ def _fuss(duell: liga.Duell, jetzt: int) -> dict:
     if duell.spiele:
         teile.append(f"{len(duell.spiele)} Spiele seit {datum(duell.spiele[0].ende)}")
     teile += [f"Stand {datum_zeit(jetzt)}", "automatisch montags 7 Uhr", AKTUALISIEREN]
-    return {"text": " · ".join(teile)}
+    return {"text": " · ".join(teile) + "\n" + version.code_version()}
 
 
 # --- Ranglisten-Nachricht ----------------------------------------------------
@@ -172,7 +172,7 @@ def _seiten_embed(duell: liga.Duell) -> dict:
         felder.append({
             "name": "Welche Seite gewinnt?",
             "value": f"Achse **{achse[0]}** · Alliierte **{alliierte[0]}** Siege\n"
-                     f"-# von {achse[1]} Spielen Achse gegen Alliierte",
+                     f"-# {achse[1]} Spiele",
             "inline": False,
         })
     return {

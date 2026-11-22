@@ -87,7 +87,7 @@ def test_achse_und_alliierte_je_team_und_seite():
     # Ohne Farben; das Achse-Duell (Spiel 5) zaehlt hier nicht mit
     assert felder["Welche Seite gewinnt?"] == (
         "Achse **3** · Alliierte **1** Siege\n"
-        "-# von 4 Spielen Achse gegen Alliierte"
+        "-# 4 Spiele"
     )
     assert not any(farbe in ausgabe.als_text(ausgabe.ranglisten_nachricht(spiele, JETZT)) for farbe in "🟥🟩⬜")
 
@@ -201,3 +201,16 @@ def test_spiele_aufruf_zeigt_aeltere_spiele_ohne_zu_schreiben(tmp_path, monkeypa
     assert main(["--spiele", "0"]) == 0
     assert capsys.readouterr().out.startswith("20 von 20 Spielen")
     assert speicher.datei.read_bytes() == vorher, "nur lesend"
+
+
+def test_fusszeile_nennt_die_code_version(tmp_path, monkeypatch):
+    from sonntagsladder import version
+
+    datei = tmp_path / "version.txt"
+    monkeypatch.setattr(version, "DATEI", datei)
+    assert version.code_version(datei) == "Code-Version dev", "lokal ohne Deploy"
+
+    datei.write_text("11 22.11.2026\n", encoding="utf-8")
+    monkeypatch.setattr(version.code_version, "__defaults__", (datei,))
+    fuss = ausgabe.ranglisten_nachricht(_spiele(3), JETZT)["embeds"][-1]["footer"]["text"]
+    assert fuss.endswith("\nCode-Version 11, 22.11.2026")
