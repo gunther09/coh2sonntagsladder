@@ -18,14 +18,15 @@ from . import liga
 from .spieler import TEAM_EMOJI, TEAM_FARBE, TEAMS, kurzname, name
 
 TITEL = "🏆 CoH2-Sonntagsladder"
-LETZTE_SPIELE = 10
+LETZTE_SPIELE = 12
 VERLAUF_MAX = 20
 NEUE_SPIELE_MAX = 10
-KARTE_MAX = 16
+KARTE_MAX = 7  # "Minsk Pocket Frontline" -> "Minsk P"
 FARBE_NEUTRAL = 0x6B7280
-# Den Befehl stellt der Elternabend-Bot im selben Server bereit (Repo DiscordBot),
-# er startet nur den Dienst dieser Ladder auf dem Pi.
-AKTUALISIEREN = "Sofort aktualisieren: /ladder"
+# Die Befehle stellt der Elternabend-Bot im selben Server bereit (Repo DiscordBot):
+# /ladder startet den Dienst dieser Ladder, /ladder_spiele ruft
+# `python -m sonntagsladder --spiele N` auf und zeigt die Tabelle nur dem Aufrufer.
+AKTUALISIEREN = "/ladder aktualisiert sofort · /ladder_spiele zeigt ältere Spiele"
 
 EMBED_GESAMT = 6000
 BESCHREIBUNG_MAX = 4096
@@ -87,17 +88,14 @@ def _serie(bilanz: liga.Bilanz) -> str:
     return "1 Niederlage" if laenge == 1 else f"{laenge} Niederlagen in Folge"
 
 
-def _kuerzen(text: str, laenge: int) -> str:
-    return text if len(text) <= laenge else text[: laenge - 1] + "…"
-
-
-def _tabelle(kopf: list[str], zeilen: list[list[str]]) -> str:
+def _tabelle(kopf: list[str], zeilen: list[list[str]], *, zaun: bool = True) -> str:
     breiten = [max(len(str(z[i])) for z in [kopf, *zeilen]) for i in range(len(kopf))]
 
     def zeile(werte):
         return "  ".join(str(w).ljust(breiten[i]) for i, w in enumerate(werte)).rstrip()
 
-    return "```\n" + "\n".join([zeile(kopf), *(zeile(z) for z in zeilen)]) + "\n```"
+    text = "\n".join([zeile(kopf), *(zeile(z) for z in zeilen)])
+    return f"```\n{text}\n```" if zaun else text
 
 
 def _fuss(duell: liga.Duell, jetzt: int) -> dict:
@@ -114,12 +112,9 @@ def _fuss(duell: liga.Duell, jetzt: int) -> dict:
 def _gesamt_embed(duell: liga.Duell) -> dict:
     a, b = duell.bilanzen
     if a.siege == b.siege:
-        fuehrung, farbe = "Gleichstand.", FARBE_NEUTRAL
+        farbe = FARBE_NEUTRAL
     else:
-        vorne = 0 if a.siege > b.siege else 1
-        abstand = abs(a.siege - b.siege)
-        fuehrung = f"{_team(vorne)} führen mit {abstand} {'Sieg' if abstand == 1 else 'Siegen'} Vorsprung."
-        farbe = TEAM_FARBE[vorne]
+        farbe = TEAM_FARBE[0 if a.siege > b.siege else 1]  # Randfarbe = wer fuehrt
 
     felder = [
         {
@@ -138,7 +133,7 @@ def _gesamt_embed(duell: liga.Duell) -> dict:
     })
     return {
         "title": f"{TITEL} · Gesamtwertung",
-        "description": f"## {TEAM_EMOJI[0]}  {a.siege} : {b.siege}  {TEAM_EMOJI[1]}\n{fuehrung}",
+        "description": f"## {TEAM_EMOJI[0]}  {a.siege} : {b.siege}  {TEAM_EMOJI[1]}",
         "color": farbe,
         "fields": felder,
     }
@@ -147,6 +142,14 @@ def _gesamt_embed(duell: liga.Duell) -> dict:
 def dauer(minuten: int) -> str:
     """40 -> '0.40', 75 -> '1.15' (Stunden.Minuten)."""
     return f"{minuten // 60}.{minuten % 60:02d}"
+
+
+# Eigene Farben fuer die Seiten, getrennt von den Teamfarben 🟦/🟧
+SEITEN_EMOJI = {"Achse": "🟥", "Alliierte": "🟩", liga.GEMISCHT: "⬜"}
+
+
+def _seite(seite_name: str) -> str:
+    return f"{SEITEN_EMOJI.get(seite_name, '')} {seite_name.capitalize()}".strip()
 
 
 def _seiten_embed(duell: liga.Duell) -> dict:
@@ -158,7 +161,7 @@ def _seiten_embed(duell: liga.Duell) -> dict:
             if b is None:
                 continue
             zeilen.append(
-                f"{seite_name.capitalize()}: **{b.siege} : {b.niederlagen}** · "
+                f"{_seite(seite_name)}: **{b.siege} : {b.niederlagen}** · "
                 f"{_prozent(b.siege, b.spiele)}"
             )
         if zeilen:
@@ -168,43 +171,34 @@ def _seiten_embed(duell: liga.Duell) -> dict:
                 "inline": True,
             })
 
-    paarungen = []
-    for (seite_a, seite_b), (siege_a, siege_b) in sorted(
-        duell.paarungen.items(), key=lambda paar: -sum(paar[1])
-    ):
-        paarungen.append(
-            f"{TEAM_EMOJI[0]} {seite_a} gegen {TEAM_EMOJI[1]} {seite_b}: **{siege_a} : {siege_b}**"
-        )
-    if paarungen:
-        felder.append({"name": "Paarungen", "value": "\n".join(paarungen), "inline": False})
-
     achse, alliierte = duell.seiten["Achse"], duell.seiten["Alliierte"]
     if achse[1]:
         felder.append({
             "name": "Welche Seite gewinnt?",
-            "value": f"Achse {achse[0]} · Alliierte {alliierte[0]} "
+            "value": f"{_seite('Achse')} **{achse[0]}** · {_seite('Alliierte')} **{alliierte[0]}** "
                      f"(von {achse[1]} Spielen Achse gegen Alliierte)",
             "inline": False,
         })
     return {
         "title": "⚔️ Achse oder Alliierte",
-        "description": "Siege : Niederlagen je Team und Seite",
         "color": FARBE_NEUTRAL,
         "fields": felder,
     }
 
 
-def letzte_spiele_tabelle(duell: liga.Duell, anzahl: int = LETZTE_SPIELE) -> str:
+def letzte_spiele_tabelle(duell: liga.Duell, anzahl: int | None = LETZTE_SPIELE, *, zaun: bool = True) -> str:
+    """Neueste zuerst; anzahl None = alle. zaun=False ohne ```-Codeblock."""
     zeilen = []
-    for spiel in reversed(duell.spiele[-anzahl:]):
+    auswahl = duell.spiele if anzahl is None else duell.spiele[-anzahl:]
+    for spiel in reversed(auswahl):
         zeilen.append([
             _zeit(spiel.ende).strftime("%d.%m."),
             kurzer_teamname(TEAMS[liga.sieger_index(spiel)]),
             liga.team_seite(spiel, spiel.sieger),
             dauer(spiel.dauer_minuten),
-            _kuerzen(liga.kartenname(spiel.karte), KARTE_MAX),
+            liga.kartenname(spiel.karte)[:KARTE_MAX].rstrip(),
         ])
-    return _tabelle(["Datum", "Sieger", "als", "Dauer", "Karte"], zeilen)
+    return _tabelle(["Datum", "Sieger", "als", "Dauer", "Karte"], zeilen, zaun=zaun)
 
 
 def _letzte_embed(duell: liga.Duell, jetzt: int, anzahl: int) -> dict:

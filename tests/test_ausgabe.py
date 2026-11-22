@@ -40,8 +40,8 @@ def test_rangliste_gesamtwertung_oben_dann_seiten_dann_letzte_spiele():
         "🏆 CoH2-Sonntagsladder · Gesamtwertung", "⚔️ Achse oder Alliierte", "📜 Letzte Spiele",
     ]
     gesamt = embeds["🏆 CoH2-Sonntagsladder · Gesamtwertung"]
-    assert gesamt["description"].startswith("## 🟦  7 : 3  🟧")
-    assert "**Ace & Dipl.Agronom** führen mit 4 Siegen Vorsprung" in gesamt["description"]
+    assert gesamt["description"] == "## 🟦  7 : 3  🟧"
+    assert gesamt["color"] == ausgabe.TEAM_FARBE[0], "Randfarbe = wer fuehrt"
     felder = _felder(gesamt)
     assert felder["🟦 Ace & Dipl.Agronom"].startswith("**7** Siege · 70 %")
     assert felder["🟧 Bella & UBack"].startswith("**3** Siege · 30 %")
@@ -54,11 +54,11 @@ def test_rangliste_gesamtwertung_oben_dann_seiten_dann_letzte_spiele():
 
 def test_gleichstand():
     gesamt = ausgabe.ranglisten_nachricht(_spiele(4, sieger_ab=2), JETZT)["embeds"][0]
-    assert gesamt["description"] == "## 🟦  2 : 2  🟧\nGleichstand."
+    assert gesamt["description"] == "## 🟦  2 : 2  🟧"
     assert gesamt["color"] == ausgabe.FARBE_NEUTRAL
 
 
-def test_achse_und_alliierte_je_team_und_paarung():
+def test_achse_und_alliierte_je_team_und_seite():
     roh = [
         relic_spiel(1, sieger=TEAM_AD, verlierer=TEAM_UB, races=ACHSE_AD),
         relic_spiel(2, sieger=TEAM_AD, verlierer=TEAM_UB, races=ACHSE_AD),
@@ -75,23 +75,16 @@ def test_achse_und_alliierte_je_team_und_paarung():
     assert (ad["Alliierte"].siege, ad["Alliierte"].spiele) == (0, 1)
     assert (ub["Achse"].siege, ub["Achse"].spiele) == (2, 2)
     assert (ub["Alliierte"].siege, ub["Alliierte"].spiele) == (1, 3)
-    assert duell.paarungen == {
-        ("Achse", "Alliierte"): [2, 1],
-        ("Alliierte", "Achse"): [0, 1],
-        ("Achse", "Achse"): [0, 1],
-    }
     assert duell.seiten == {"Achse": [3, 4], "Alliierte": [1, 4]}, "Achse-Duell zaehlt nicht mit"
 
-    felder = _felder(_embeds(ausgabe.ranglisten_nachricht(spiele, JETZT))["⚔️ Achse oder Alliierte"])
+    embed = _embeds(ausgabe.ranglisten_nachricht(spiele, JETZT))["⚔️ Achse oder Alliierte"]
+    assert "description" not in embed
+    felder = _felder(embed)
+    assert list(felder) == ["🟦 Ace & Dipl.Agronom", "🟧 Bella & UBack", "Welche Seite gewinnt?"]
     # Siege : Niederlagen je Team und Seite
-    assert felder["🟦 Ace & Dipl.Agronom"] == "Achse: **2 : 2** · 50 %\nAlliierte: **0 : 1** · 0 %"
-    assert felder["🟧 Bella & UBack"] == "Achse: **2 : 0** · 100 %\nAlliierte: **1 : 2** · 33 %"
-    assert felder["Paarungen"].splitlines() == [
-        "🟦 Achse gegen 🟧 Alliierte: **2 : 1**",
-        "🟦 Alliierte gegen 🟧 Achse: **0 : 1**",
-        "🟦 Achse gegen 🟧 Achse: **0 : 1**",
-    ]
-    assert felder["Welche Seite gewinnt?"].startswith("Achse 3 · Alliierte 1 (von 4 Spielen")
+    assert felder["🟦 Ace & Dipl.Agronom"] == "🟥 Achse: **2 : 2** · 50 %\n🟩 Alliierte: **0 : 1** · 0 %"
+    assert felder["🟧 Bella & UBack"] == "🟥 Achse: **2 : 0** · 100 %\n🟩 Alliierte: **1 : 2** · 33 %"
+    assert felder["Welche Seite gewinnt?"].startswith("🟥 Achse **3** · 🟩 Alliierte **1** (von 4 Spielen")
 
 
 def test_gemischtes_team_wird_als_gemischt_gefuehrt():
@@ -99,17 +92,17 @@ def test_gemischtes_team_wird_als_gemischt_gefuehrt():
     [spiel] = liga.spiele_aus_antwort(antwort(*roh))
     assert liga.team_seite(spiel, TEAM_AD) == liga.GEMISCHT
     felder = _felder(ausgabe.ranglisten_nachricht([spiel], JETZT)["embeds"][1])
-    assert felder["🟦 Ace & Dipl.Agronom"] == "Gemischt: **1 : 0** · 100 %"
+    assert felder["🟦 Ace & Dipl.Agronom"] == "⬜ Gemischt: **1 : 0** · 100 %"
     assert "Welche Seite gewinnt?" not in felder
 
 
 def test_letzte_spiele_tabelle_mit_kurznamen_neueste_oben():
-    tabelle = ausgabe.letzte_spiele_tabelle(liga.duell_auswerten(_spiele(12, sieger_ab=3)))
+    tabelle = ausgabe.letzte_spiele_tabelle(liga.duell_auswerten(_spiele(15, sieger_ab=3)))
     zeilen = tabelle.strip("`\n").splitlines()
 
     assert zeilen[0].split() == ["Datum", "Sieger", "als", "Dauer", "Karte"]
     assert len(zeilen) == 1 + ausgabe.LETZTE_SPIELE
-    assert zeilen[1].split()[1:] == ["Bella+UBack", "Alliierte", "0.30", "Road", "to", "Kharkov"]  # Spiel 12
+    assert zeilen[1].split()[1:] == ["Bella+UBack", "Alliierte", "0.30", "Road", "to"]  # Spiel 15, Karte auf 7 Zeichen
     assert zeilen[2].split()[1:3] == ["Ace+Dipl.Agronom", "Achse"]
 
 
@@ -167,3 +160,23 @@ def test_markdown_in_namen_wird_entschaerft(monkeypatch):
     spiele = _spiele(1)
     [embed] = ausgabe.neue_spiele_nachricht(spiele, spiele)["embeds"]
     assert r"**\*Ace\_\* & Dipl.Agronom**" in embed["description"]
+
+
+def test_spiele_aufruf_zeigt_aeltere_spiele_ohne_zu_schreiben(tmp_path, monkeypatch, capsys):
+    from sonntagsladder.__main__ import main
+    from sonntagsladder.speicher import Speicher, Zustand
+
+    spiele = _spiele(20, sieger_ab=3)
+    speicher = Speicher(tmp_path)
+    speicher.speichern(Zustand(spiele={s.id: s for s in spiele}))
+    vorher = speicher.datei.read_bytes()
+    monkeypatch.setenv("COH2_DATEN", str(tmp_path))
+
+    assert main(["--spiele", "15"]) == 0
+    zeilen = capsys.readouterr().out.splitlines()
+    assert zeilen[0] == "15 von 20 Spielen, neueste zuerst"
+    assert len(zeilen) == 2 + 15 and "```" not in zeilen
+
+    assert main(["--spiele", "0"]) == 0
+    assert capsys.readouterr().out.startswith("20 von 20 Spielen")
+    assert speicher.datei.read_bytes() == vorher, "nur lesend"

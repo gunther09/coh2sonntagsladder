@@ -3,6 +3,8 @@
     python -m sonntagsladder            ein Lauf (holen, speichern, melden)
     python -m sonntagsladder --trocken  nur holen und anzeigen, nichts speichern oder senden
     python -m sonntagsladder --zeigen   Rangliste aus den gespeicherten Spielen anzeigen
+    python -m sonntagsladder --spiele N die letzten N Teamduelle als Tabelle (0 = alle),
+                                        nur lesend; so ruft es /ladder_spiele im Bot auf
 
 Umgebung:
     COH2_DATEN        Ordner fuer zustand.json (Vorgabe: ./daten)
@@ -38,11 +40,23 @@ def main(argv: list[str] | None = None) -> int:
     modus = parser.add_mutually_exclusive_group()
     modus.add_argument("--trocken", action="store_true", help="nur holen und anzeigen")
     modus.add_argument("--zeigen", action="store_true", help="gespeicherte Rangliste anzeigen")
+    modus.add_argument("--spiele", type=int, metavar="N", help="letzte N Spiele als Tabelle, 0 = alle")
     args = parser.parse_args(argv)
 
     _konsole_utf8()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     speicher = Speicher(os.environ.get("COH2_DATEN") or "daten")
+
+    if args.spiele is not None:
+        duell = liga.duell_auswerten(speicher.laden().spiele.values())
+        if not duell.spiele:
+            print("Noch keine Spiele erfasst.")
+            return 0
+        anzahl = None if args.spiele <= 0 else args.spiele
+        gezeigt = len(duell.spiele) if anzahl is None else min(anzahl, len(duell.spiele))
+        print(f"{gezeigt} von {len(duell.spiele)} Spielen, neueste zuerst")
+        print(ausgabe.letzte_spiele_tabelle(duell, anzahl, zaun=False))
+        return 0
 
     if args.zeigen:
         print(ausgabe.als_text(ausgabe.ranglisten_nachricht(speicher.laden().spiele.values(), int(time.time()))))

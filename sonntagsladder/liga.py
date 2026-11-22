@@ -290,8 +290,6 @@ class Duell:
     bilanzen: tuple[Bilanz, Bilanz]
     # je Team: Seite -> Bilanz (nur Seiten, mit denen das Team gespielt hat)
     nach_seite: tuple[dict[str, Bilanz], dict[str, Bilanz]]
-    # (Seite Team 0, Seite Team 1) -> [Siege Team 0, Siege Team 1]
-    paarungen: dict[tuple[str, str], list[int]]
     # Seite -> [Siege, Spiele] ueber beide Teams, nur Spiele Achse gegen Alliierte
     seiten: dict[str, list[int]]
 
@@ -300,7 +298,6 @@ def duell_auswerten(spiele: Iterable[Spiel], teams: tuple[tuple[int, ...], ...] 
     duelle = teamduelle(spiele, teams)
     bilanzen = (Bilanz(), Bilanz())
     nach_seite: tuple[dict[str, Bilanz], dict[str, Bilanz]] = ({}, {})
-    paarungen: dict[tuple[str, str], list[int]] = {}
     seiten = {"Achse": [0, 0], "Alliierte": [0, 0]}
     for spiel in duelle:
         gewinner = sieger_index(spiel, teams)
@@ -309,10 +306,9 @@ def duell_auswerten(spiele: Iterable[Spiel], teams: tuple[tuple[int, ...], ...] 
             sieg = index == gewinner
             bilanzen[index].verlauf.append(sieg)
             nach_seite[index].setdefault(team_seiten[index], Bilanz()).verlauf.append(sieg)
-        paarungen.setdefault(team_seiten, [0, 0])[gewinner] += 1
         if set(team_seiten) == {"Achse", "Alliierte"}:
             for index in (0, 1):
                 eintrag = seiten[team_seiten[index]]
                 eintrag[1] += 1
                 eintrag[0] += index == gewinner
-    return Duell(duelle, bilanzen, nach_seite, paarungen, seiten)
+    return Duell(duelle, bilanzen, nach_seite, seiten)

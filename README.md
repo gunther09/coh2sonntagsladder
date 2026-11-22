@@ -19,8 +19,12 @@ automatisch in einem Discord-Kanal.
 - Gezeigt wird nur das Duell der zwei festen Teams (**Ace & Dipl.Agronom**
   gegen **Bella & UBack**, in `spieler.TEAMS`), als Discord-Embeds: oben die
   Gesamtwertung mit Serie und Verlauf, dann **Achse oder Alliierte** (wer
-  gewinnt mit welcher Seite, Stand je Paarung), unten die letzten Spiele als
-  Tabelle. Spiele in anderer Besetzung werden gespeichert, aber nicht gezeigt.
+  gewinnt mit welcher Seite, Siege : Niederlagen je Team), unten die letzten
+  12 Spiele als Tabelle. Spiele in anderer Besetzung werden gespeichert, aber
+  nicht gezeigt.
+- Ältere Spiele: `/ladder_spiele anzahl:30` im Discord (Elternabend-Bot,
+  Antwort nur für den Aufrufer). Der Bot ruft dafür als `coh2ladder`
+  `python3 -m sonntagsladder --spiele N` auf, das nur liest.
 
 **Grenze:** Relic hält je Spieler nur die letzten 10 Spiele pro Modus. Was
 älter ist, gibt es nirgends mehr (auch coh2stats.com zeigt Custom Games
