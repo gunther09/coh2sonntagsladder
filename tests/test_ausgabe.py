@@ -82,9 +82,15 @@ def test_achse_und_alliierte_je_team_und_seite():
     felder = _felder(embed)
     assert list(felder) == ["🟦 Ace & Dipl.Agronom", "🟧 Bella & UBack", "Welche Seite gewinnt?"]
     # Siege : Niederlagen je Team und Seite
-    assert felder["🟦 Ace & Dipl.Agronom"] == "🟥 Achse: **2 : 2** · 50 %\n🟩 Alliierte: **0 : 1** · 0 %"
-    assert felder["🟧 Bella & UBack"] == "🟥 Achse: **2 : 0** · 100 %\n🟩 Alliierte: **1 : 2** · 33 %"
-    assert felder["Welche Seite gewinnt?"].startswith("🟥 Achse **3** · 🟩 Alliierte **1** (von 4 Spielen")
+    assert felder["🟦 Ace & Dipl.Agronom"] == "Achse: **2 : 2** · 50 %\nAlliierte: **0 : 1** · 0 %"
+    assert felder["🟧 Bella & UBack"] == "Achse: **2 : 0** · 100 %\nAlliierte: **1 : 2** · 33 %"
+    # Nur Teamfarben; das Achse-Duell (Spiel 5) zaehlt hier nicht mit
+    assert felder["Welche Seite gewinnt?"] == (
+        "Achse **3** (🟦 2 · 🟧 1)\n"
+        "Alliierte **1** (🟦 0 · 🟧 1)\n"
+        "-# von 4 Spielen Achse gegen Alliierte"
+    )
+    assert not any(farbe in ausgabe.als_text(ausgabe.ranglisten_nachricht(spiele, JETZT)) for farbe in "🟥🟩⬜")
 
 
 def test_gemischtes_team_wird_als_gemischt_gefuehrt():
@@ -92,7 +98,7 @@ def test_gemischtes_team_wird_als_gemischt_gefuehrt():
     [spiel] = liga.spiele_aus_antwort(antwort(*roh))
     assert liga.team_seite(spiel, TEAM_AD) == liga.GEMISCHT
     felder = _felder(ausgabe.ranglisten_nachricht([spiel], JETZT)["embeds"][1])
-    assert felder["🟦 Ace & Dipl.Agronom"] == "⬜ Gemischt: **1 : 0** · 100 %"
+    assert felder["🟦 Ace & Dipl.Agronom"] == "Gemischt: **1 : 0** · 100 %"
     assert "Welche Seite gewinnt?" not in felder
 
 

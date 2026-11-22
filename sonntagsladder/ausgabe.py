@@ -144,12 +144,19 @@ def dauer(minuten: int) -> str:
     return f"{minuten // 60}.{minuten % 60:02d}"
 
 
-# Eigene Farben fuer die Seiten, getrennt von den Teamfarben 🟦/🟧
-SEITEN_EMOJI = {"Achse": "🟥", "Alliierte": "🟩", liga.GEMISCHT: "⬜"}
-
-
 def _seite(seite_name: str) -> str:
-    return f"{SEITEN_EMOJI.get(seite_name, '')} {seite_name.capitalize()}".strip()
+    return seite_name.capitalize()
+
+
+def _siege_mit(duell: liga.Duell, seite_name: str) -> str:
+    """'🟦 3 · 🟧 2': wer hat die Siege dieser Seite geholt (nur Teamfarben,
+    keine eigenen Farben fuer die Seiten - sonst wird es zu bunt)."""
+    siege = [0, 0]
+    for spiel in duell.spiele:
+        seiten = {liga.team_seite(spiel, team) for team in TEAMS}
+        if seiten == {"Achse", "Alliierte"} and liga.team_seite(spiel, spiel.sieger) == seite_name:
+            siege[liga.sieger_index(spiel)] += 1
+    return " · ".join(f"{TEAM_EMOJI[i]} {siege[i]}" for i in (0, 1))
 
 
 def _seiten_embed(duell: liga.Duell) -> dict:
@@ -175,8 +182,9 @@ def _seiten_embed(duell: liga.Duell) -> dict:
     if achse[1]:
         felder.append({
             "name": "Welche Seite gewinnt?",
-            "value": f"{_seite('Achse')} **{achse[0]}** · {_seite('Alliierte')} **{alliierte[0]}** "
-                     f"(von {achse[1]} Spielen Achse gegen Alliierte)",
+            "value": f"Achse **{achse[0]}** ({_siege_mit(duell, 'Achse')})\n"
+                     f"Alliierte **{alliierte[0]}** ({_siege_mit(duell, 'Alliierte')})\n"
+                     f"-# von {achse[1]} Spielen Achse gegen Alliierte",
             "inline": False,
         })
     return {
