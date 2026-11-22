@@ -108,8 +108,24 @@ def test_letzte_spiele_tabelle_mit_kurznamen_neueste_oben():
 
     assert zeilen[0].split() == ["Datum", "Sieger", "als", "Dauer", "Karte"]
     assert len(zeilen) == 1 + ausgabe.LETZTE_SPIELE
-    assert zeilen[1].split()[1:] == ["Bella+UBack", "Alliierte", "0.30", "Road", "to"]  # Spiel 15, Karte auf 7 Zeichen
-    assert zeilen[2].split()[1:3] == ["Ace+Dipl.Agronom", "Achse"]
+    # Spalte "Datum" kann leer sein (gleicher Tag), deshalb ab Spalte "Sieger" lesen
+    sieger = zeilen[0].index("Sieger")
+    assert zeilen[1][sieger:].split() == ["Bella+UBack", "Alliierte", "0.30", "Road", "to"]  # Spiel 15, Karte auf 7 Zeichen
+    assert zeilen[2][sieger:].split()[:2] == ["Ace+Dipl.Agronom", "Achse"]
+
+
+def test_letzte_spiele_datum_nur_beim_obersten_spiel_des_tages():
+    tag = 86_400
+    sonntag = 1_793_570_400  # So 01.11.2026, 22:00 Berlin
+    roh = [
+        relic_spiel(1, ende=sonntag - 7 * tag),
+        relic_spiel(2, ende=sonntag - 2 * 3600),
+        relic_spiel(3, ende=sonntag - 3600),
+        relic_spiel(4, ende=sonntag),
+    ]
+    tabelle = ausgabe.letzte_spiele_tabelle(liga.duell_auswerten(liga.spiele_aus_antwort(antwort(*roh))))
+    datum = [zeile[:6] for zeile in tabelle.strip("`\n").splitlines()[1:]]
+    assert datum == ["01.11.", "      ", "      ", "25.10."]
 
 
 def test_dauer_in_stunden_punkt_minuten():

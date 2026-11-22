@@ -198,14 +198,19 @@ def letzte_spiele_tabelle(duell: liga.Duell, anzahl: int | None = LETZTE_SPIELE,
     """Neueste zuerst; anzahl None = alle. zaun=False ohne ```-Codeblock."""
     zeilen = []
     auswahl = duell.spiele if anzahl is None else duell.spiele[-anzahl:]
+    vorheriger_tag = None
     for spiel in reversed(auswahl):
+        # Spiele desselben Tages: Datum nur in der obersten Zeile, damit die
+        # Spieltage als Bloecke sichtbar sind.
+        tag = _zeit(spiel.ende).strftime("%d.%m.")
         zeilen.append([
-            _zeit(spiel.ende).strftime("%d.%m."),
+            tag if tag != vorheriger_tag else "",
             kurzer_teamname(TEAMS[liga.sieger_index(spiel)]),
             liga.team_seite(spiel, spiel.sieger),
             dauer(spiel.dauer_minuten),
             liga.kartenname(spiel.karte)[:KARTE_MAX].rstrip(),
         ])
+        vorheriger_tag = tag
     return _tabelle(["Datum", "Sieger", "als", "Dauer", "Karte"], zeilen, zaun=zaun)
 
 
