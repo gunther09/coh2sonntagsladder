@@ -148,17 +148,6 @@ def _seite(seite_name: str) -> str:
     return seite_name.capitalize()
 
 
-def _siege_mit(duell: liga.Duell, seite_name: str) -> str:
-    """'🟦 3 · 🟧 2': wer hat die Siege dieser Seite geholt (nur Teamfarben,
-    keine eigenen Farben fuer die Seiten - sonst wird es zu bunt)."""
-    siege = [0, 0]
-    for spiel in duell.spiele:
-        seiten = {liga.team_seite(spiel, team) for team in TEAMS}
-        if seiten == {"Achse", "Alliierte"} and liga.team_seite(spiel, spiel.sieger) == seite_name:
-            siege[liga.sieger_index(spiel)] += 1
-    return " · ".join(f"{TEAM_EMOJI[i]} {siege[i]}" for i in (0, 1))
-
-
 def _seiten_embed(duell: liga.Duell) -> dict:
     felder = []
     for i in (0, 1):
@@ -182,13 +171,13 @@ def _seiten_embed(duell: liga.Duell) -> dict:
     if achse[1]:
         felder.append({
             "name": "Welche Seite gewinnt?",
-            "value": f"Achse **{achse[0]}** ({_siege_mit(duell, 'Achse')})\n"
-                     f"Alliierte **{alliierte[0]}** ({_siege_mit(duell, 'Alliierte')})\n"
+            "value": f"Achse **{achse[0]}** · Alliierte **{alliierte[0]}** Siege\n"
                      f"-# von {achse[1]} Spielen Achse gegen Alliierte",
             "inline": False,
         })
     return {
-        "title": "⚔️ Achse oder Alliierte",
+        # Die Teamspalten zeigen Siege : Niederlagen - knapp im Titel erklaert
+        "title": "⚔️ Achse oder Alliierte · Siege : Niederlagen",
         "color": FARBE_NEUTRAL,
         "fields": felder,
     }

@@ -37,7 +37,7 @@ def test_rangliste_gesamtwertung_oben_dann_seiten_dann_letzte_spiele():
     embeds = _embeds(nachricht)
 
     assert list(embeds) == [
-        "🏆 CoH2-Sonntagsladder · Gesamtwertung", "⚔️ Achse oder Alliierte", "📜 Letzte Spiele",
+        "🏆 CoH2-Sonntagsladder · Gesamtwertung", "⚔️ Achse oder Alliierte · Siege : Niederlagen", "📜 Letzte Spiele",
     ]
     gesamt = embeds["🏆 CoH2-Sonntagsladder · Gesamtwertung"]
     assert gesamt["description"] == "## 🟦  7 : 3  🟧"
@@ -77,17 +77,16 @@ def test_achse_und_alliierte_je_team_und_seite():
     assert (ub["Alliierte"].siege, ub["Alliierte"].spiele) == (1, 3)
     assert duell.seiten == {"Achse": [3, 4], "Alliierte": [1, 4]}, "Achse-Duell zaehlt nicht mit"
 
-    embed = _embeds(ausgabe.ranglisten_nachricht(spiele, JETZT))["⚔️ Achse oder Alliierte"]
+    embed = _embeds(ausgabe.ranglisten_nachricht(spiele, JETZT))["⚔️ Achse oder Alliierte · Siege : Niederlagen"]
     assert "description" not in embed
     felder = _felder(embed)
     assert list(felder) == ["🟦 Ace & Dipl.Agronom", "🟧 Bella & UBack", "Welche Seite gewinnt?"]
     # Siege : Niederlagen je Team und Seite
     assert felder["🟦 Ace & Dipl.Agronom"] == "Achse: **2 : 2** · 50 %\nAlliierte: **0 : 1** · 0 %"
     assert felder["🟧 Bella & UBack"] == "Achse: **2 : 0** · 100 %\nAlliierte: **1 : 2** · 33 %"
-    # Nur Teamfarben; das Achse-Duell (Spiel 5) zaehlt hier nicht mit
+    # Ohne Farben; das Achse-Duell (Spiel 5) zaehlt hier nicht mit
     assert felder["Welche Seite gewinnt?"] == (
-        "Achse **3** (🟦 2 · 🟧 1)\n"
-        "Alliierte **1** (🟦 0 · 🟧 1)\n"
+        "Achse **3** · Alliierte **1** Siege\n"
         "-# von 4 Spielen Achse gegen Alliierte"
     )
     assert not any(farbe in ausgabe.als_text(ausgabe.ranglisten_nachricht(spiele, JETZT)) for farbe in "🟥🟩⬜")
