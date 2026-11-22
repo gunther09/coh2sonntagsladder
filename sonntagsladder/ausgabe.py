@@ -183,6 +183,10 @@ def _seiten_embed(duell: liga.Duell) -> dict:
     }
 
 
+# Kurz fuer die schmale Spalte "als" (sonst deutsch: Achse, Alliierte)
+TABELLEN_SEITE = {"Achse": "Axis", "Alliierte": "Allies", liga.GEMISCHT: "Mix"}
+
+
 def letzte_spiele_tabelle(duell: liga.Duell, anzahl: int | None = LETZTE_SPIELE, *, zaun: bool = True) -> str:
     """Neueste zuerst; anzahl None = alle. zaun=False ohne ```-Codeblock."""
     zeilen = []
@@ -195,7 +199,7 @@ def letzte_spiele_tabelle(duell: liga.Duell, anzahl: int | None = LETZTE_SPIELE,
         zeilen.append([
             tag if tag != vorheriger_tag else "",
             kurzer_teamname(TEAMS[liga.sieger_index(spiel)]),
-            liga.team_seite(spiel, spiel.sieger),
+            TABELLEN_SEITE.get(liga.team_seite(spiel, spiel.sieger), "?"),
             dauer(spiel.dauer_minuten),
             liga.kartenname(spiel.karte)[:KARTE_MAX].rstrip(),
         ])

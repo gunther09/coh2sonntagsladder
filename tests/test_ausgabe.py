@@ -109,8 +109,8 @@ def test_letzte_spiele_tabelle_mit_kurznamen_neueste_oben():
     assert len(zeilen) == 1 + ausgabe.LETZTE_SPIELE
     # Spalte "Datum" kann leer sein (gleicher Tag), deshalb ab Spalte "Sieger" lesen
     sieger = zeilen[0].index("Sieger")
-    assert zeilen[1][sieger:].split() == ["Bella+UBack", "Alliierte", "0.30", "Road", "to"]  # Spiel 15, Karte auf 7 Zeichen
-    assert zeilen[2][sieger:].split()[:2] == ["Ace+Dipl.Agronom", "Achse"]
+    assert zeilen[1][sieger:].split() == ["Bella+UBack", "Allies", "0.30", "Road", "to"]  # Spiel 15, Karte auf 7 Zeichen
+    assert zeilen[2][sieger:].split()[:2] == ["Ace+Dipl.Agronom", "Axis"]
 
 
 def test_letzte_spiele_datum_nur_beim_obersten_spiel_des_tages():
