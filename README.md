@@ -16,7 +16,7 @@ automatisch in einem Discord-Kanal.
 - Neue Spiele werden in einer JSON-Datei gespeichert und per **Discord-Webhook**
   gemeldet. Eine **Ranglisten-Nachricht** im Kanal wird bei jedem Lauf
   aktualisiert (einmal von Hand anheften).
-- Gezeigt wird nur das Duell der zwei festen Teams (**Ace & DiplomAgronom**
+- Gezeigt wird nur das Duell der zwei festen Teams (**Ace & Dipl.Agronom**
   gegen **Bella & UBack**, in `spieler.TEAMS`), als Discord-Embeds: oben die
   Gesamtwertung mit Serie und Verlauf, dann **Achse oder Alliierte** (wer
   gewinnt mit welcher Seite, Stand je Paarung), unten die letzten Spiele als

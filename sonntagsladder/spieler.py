@@ -10,19 +10,17 @@ SPIELER: dict[int, str] = {
     742626: "UBack",          # Steam 76561197994783260
     639680: "Bella",          # Steam 76561197994697347
     3867666: "Ace",           # Steam 76561198984634287
-    111615: "DiplomAgronom",  # Steam 76561197979850254
+    111615: "Dipl.Agronom",   # Steam 76561197979850254
 }
 
 # Kurz fuer die Tabelle der letzten Spiele; wer fehlt, heisst dort wie oben.
-KURZNAMEN: dict[int, str] = {
-    111615: "Diplom",
-}
+KURZNAMEN: dict[int, str] = {}
 
 # Die beiden festen Teams, die seit Jahren sonntags gegeneinander spielen.
 # Angezeigt wird nur das Duell dieser beiden; Spiele in anderer Besetzung
 # bleiben gespeichert, erscheinen aber nicht. Reihenfolge = Anzeige.
 TEAMS: tuple[tuple[int, ...], ...] = (
-    (3867666, 111615),  # Ace + DiplomAgronom
+    (3867666, 111615),  # Ace + Dipl.Agronom
     (639680, 742626),   # Bella + UBack
 )
 TEAM_EMOJI = ("🟦", "🟧")

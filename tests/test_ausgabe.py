@@ -41,9 +41,9 @@ def test_rangliste_gesamtwertung_oben_dann_seiten_dann_letzte_spiele():
     ]
     gesamt = embeds["🏆 CoH2-Sonntagsladder · Gesamtwertung"]
     assert gesamt["description"].startswith("## 🟦  7 : 3  🟧")
-    assert "**Ace & DiplomAgronom** führen mit 4 Siegen Vorsprung" in gesamt["description"]
+    assert "**Ace & Dipl.Agronom** führen mit 4 Siegen Vorsprung" in gesamt["description"]
     felder = _felder(gesamt)
-    assert felder["🟦 Ace & DiplomAgronom"].startswith("**7** Siege · 70 %")
+    assert felder["🟦 Ace & Dipl.Agronom"].startswith("**7** Siege · 70 %")
     assert felder["🟧 Bella & UBack"].startswith("**3** Siege · 30 %")
     assert felder["Verlauf · letzte 10, neuestes rechts"] == "🟦🟦🟧🟦🟦🟧🟦🟦🟧🟦"
     assert "10 Spiele seit" in embeds["📜 Letzte Spiele"]["footer"]["text"]
@@ -83,9 +83,9 @@ def test_achse_und_alliierte_je_team_und_paarung():
     assert duell.seiten == {"Achse": [3, 4], "Alliierte": [1, 4]}, "Achse-Duell zaehlt nicht mit"
 
     felder = _felder(_embeds(ausgabe.ranglisten_nachricht(spiele, JETZT))["⚔️ Achse oder Alliierte"])
-    # Rangliste je Seite: bessere Quote zuerst
-    assert felder["Mit Achse"] == "🟧 **2** von 2 · 100 %\n🟦 **2** von 4 · 50 %"
-    assert felder["Mit Alliierten"] == "🟧 **1** von 3 · 33 %\n🟦 **0** von 1 · 0 %"
+    # Siege : Niederlagen je Team und Seite
+    assert felder["🟦 Ace & Dipl.Agronom"] == "Achse: **2 : 2** · 50 %\nAlliierte: **0 : 1** · 0 %"
+    assert felder["🟧 Bella & UBack"] == "Achse: **2 : 0** · 100 %\nAlliierte: **1 : 2** · 33 %"
     assert felder["Paarungen"].splitlines() == [
         "🟦 Achse gegen 🟧 Alliierte: **2 : 1**",
         "🟦 Alliierte gegen 🟧 Achse: **0 : 1**",
@@ -99,18 +99,24 @@ def test_gemischtes_team_wird_als_gemischt_gefuehrt():
     [spiel] = liga.spiele_aus_antwort(antwort(*roh))
     assert liga.team_seite(spiel, TEAM_AD) == liga.GEMISCHT
     felder = _felder(ausgabe.ranglisten_nachricht([spiel], JETZT)["embeds"][1])
-    assert "Gemischt" in felder and "Welche Seite gewinnt?" not in felder
+    assert felder["🟦 Ace & Dipl.Agronom"] == "Gemischt: **1 : 0** · 100 %"
+    assert "Welche Seite gewinnt?" not in felder
 
 
 def test_letzte_spiele_tabelle_mit_kurznamen_neueste_oben():
     tabelle = ausgabe.letzte_spiele_tabelle(liga.duell_auswerten(_spiele(12, sieger_ab=3)))
     zeilen = tabelle.strip("`\n").splitlines()
 
-    assert zeilen[0].split() == ["Datum", "Sieger", "als", "Karte"]
+    assert zeilen[0].split() == ["Datum", "Sieger", "als", "Dauer", "Karte"]
     assert len(zeilen) == 1 + ausgabe.LETZTE_SPIELE
-    assert zeilen[1].split()[1:] == ["Bella+UBack", "Alliierte", "Road", "to", "Kharkov"]  # Spiel 12
-    assert zeilen[2].split()[1:3] == ["Ace+Diplom", "Achse"]
-    assert "DiplomAgronom" not in tabelle
+    assert zeilen[1].split()[1:] == ["Bella+UBack", "Alliierte", "0.30", "Road", "to", "Kharkov"]  # Spiel 12
+    assert zeilen[2].split()[1:3] == ["Ace+Dipl.Agronom", "Achse"]
+
+
+def test_dauer_in_stunden_punkt_minuten():
+    assert [ausgabe.dauer(m) for m in (0, 7, 40, 60, 75, 125)] == [
+        "0.00", "0.07", "0.40", "1.00", "1.15", "2.05",
+    ]
 
 
 def test_andere_besetzungen_erscheinen_nicht():
@@ -137,7 +143,7 @@ def test_meldung_neues_spiel_mit_seiten_und_gesamtstand():
 
     assert embed["title"] == "⚔️ Neues Spiel"
     beschreibung = embed["description"]
-    assert "🟦 **Ace & DiplomAgronom** (Achse) schlagen 🟧 Bella & UBack (Alliierte)" in beschreibung
+    assert "🟦 **Ace & Dipl.Agronom** (Achse) schlagen 🟧 Bella & UBack (Alliierte)" in beschreibung
     assert "Road to Kharkov" in beschreibung and "30 min" in beschreibung
     assert beschreibung.endswith("Gesamtstand: 🟦 **7 : 3** 🟧")
     assert embed["color"] == ausgabe.TEAM_FARBE[0]
@@ -160,4 +166,4 @@ def test_markdown_in_namen_wird_entschaerft(monkeypatch):
     monkeypatch.setitem(spieler.SPIELER, ACE, "*Ace_*")
     spiele = _spiele(1)
     [embed] = ausgabe.neue_spiele_nachricht(spiele, spiele)["embeds"]
-    assert r"**\*Ace\_\* & DiplomAgronom**" in embed["description"]
+    assert r"**\*Ace\_\* & Dipl.Agronom**" in embed["description"]

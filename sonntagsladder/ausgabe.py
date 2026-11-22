@@ -59,12 +59,12 @@ def _markdown(text: str) -> str:
 
 
 def teamname(team: Iterable[int]) -> str:
-    """'Ace & DiplomAgronom' (ohne Markdown)."""
+    """'Ace & Dipl.Agronom' (ohne Markdown)."""
     return " & ".join(name(profil_id) for profil_id in team)
 
 
 def kurzer_teamname(team: Iterable[int]) -> str:
-    """'Ace+Diplom' fuer die Tabelle."""
+    """'Ace+Dipl.Agronom' fuer die Tabelle."""
     return "+".join(kurzname(profil_id) for profil_id in team)
 
 
@@ -144,27 +144,29 @@ def _gesamt_embed(duell: liga.Duell) -> dict:
     }
 
 
-_SEITEN_TITEL = {"Achse": "Mit Achse", "Alliierte": "Mit Alliierten", liga.GEMISCHT: "Gemischt"}
+def dauer(minuten: int) -> str:
+    """40 -> '0.40', 75 -> '1.15' (Stunden.Minuten)."""
+    return f"{minuten // 60}.{minuten % 60:02d}"
 
 
 def _seiten_embed(duell: liga.Duell) -> dict:
     felder = []
-    for seite_name in ("Achse", "Alliierte", liga.GEMISCHT):
-        eintraege = [
-            (i, duell.nach_seite[i][seite_name]) for i in (0, 1) if seite_name in duell.nach_seite[i]
-        ]
-        if not eintraege:
-            continue
-        # Rangliste je Seite: bessere Quote zuerst, bei Gleichstand Reihenfolge aus TEAMS
-        eintraege.sort(key=lambda paar: (-(paar[1].quote or 0), -paar[1].siege, paar[0]))
-        felder.append({
-            "name": _SEITEN_TITEL[seite_name],
-            "value": "\n".join(
-                f"{TEAM_EMOJI[i]} **{b.siege}** von {b.spiele} · {_prozent(b.siege, b.spiele)}"
-                for i, b in eintraege
-            ),
-            "inline": True,
-        })
+    for i in (0, 1):
+        zeilen = []
+        for seite_name in ("Achse", "Alliierte", liga.GEMISCHT):
+            b = duell.nach_seite[i].get(seite_name)
+            if b is None:
+                continue
+            zeilen.append(
+                f"{seite_name.capitalize()}: **{b.siege} : {b.niederlagen}** · "
+                f"{_prozent(b.siege, b.spiele)}"
+            )
+        if zeilen:
+            felder.append({
+                "name": f"{TEAM_EMOJI[i]} {teamname(TEAMS[i])}",
+                "value": "\n".join(zeilen),
+                "inline": True,
+            })
 
     paarungen = []
     for (seite_a, seite_b), (siege_a, siege_b) in sorted(
@@ -184,7 +186,12 @@ def _seiten_embed(duell: liga.Duell) -> dict:
                      f"(von {achse[1]} Spielen Achse gegen Alliierte)",
             "inline": False,
         })
-    return {"title": "⚔️ Achse oder Alliierte", "color": FARBE_NEUTRAL, "fields": felder}
+    return {
+        "title": "⚔️ Achse oder Alliierte",
+        "description": "Siege : Niederlagen je Team und Seite",
+        "color": FARBE_NEUTRAL,
+        "fields": felder,
+    }
 
 
 def letzte_spiele_tabelle(duell: liga.Duell, anzahl: int = LETZTE_SPIELE) -> str:
@@ -194,9 +201,10 @@ def letzte_spiele_tabelle(duell: liga.Duell, anzahl: int = LETZTE_SPIELE) -> str
             _zeit(spiel.ende).strftime("%d.%m."),
             kurzer_teamname(TEAMS[liga.sieger_index(spiel)]),
             liga.team_seite(spiel, spiel.sieger),
+            dauer(spiel.dauer_minuten),
             _kuerzen(liga.kartenname(spiel.karte), KARTE_MAX),
         ])
-    return _tabelle(["Datum", "Sieger", "als", "Karte"], zeilen)
+    return _tabelle(["Datum", "Sieger", "als", "Dauer", "Karte"], zeilen)
 
 
 def _letzte_embed(duell: liga.Duell, jetzt: int, anzahl: int) -> dict:
